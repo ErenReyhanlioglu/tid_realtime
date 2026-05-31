@@ -1,0 +1,16 @@
+[project]
+name = "tid-realtime"
+version = "0.1.0"
+description = "Türk İşaret Dili gerçek zamanlı tahmin uygulaması"
+requires-python = ">=3.11"
+dependencies = [
+    "tensorflow-cpu>=2.15",
+    "mediapipe==0.10.14",
+    "opencv-python",
+    "numpy",
+]
+
+[tool.uv]
+override-dependencies = [
+    "tensorflow-io-gcs-filesystem; sys_platform != 'win32'",
+]
