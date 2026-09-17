@@ -1,140 +1,209 @@
-# Sport Pose Estimation
-## Yapay Zeka Tabanlı Kişisel Antrenör
+# TID Realtime — Türk İşaret Dili Gerçek Zamanlı Tahmin
 
-Bu proje, spor yapan bireylerin hareketlerini sadece tanımakla kalmayıp, hareketin doğru formda yapılıp yapılmadığını analiz eden Yapay Zeka Kişisel Antrenörü vizyonuyla geliştirilmiş çok görevli (Multi-Task Learning) bir derin öğrenme sistemidir.
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
----
+Webcam üzerinden 30 TİD kelimesini gerçek zamanlı olarak tanıyan bir derin öğrenme modeli. MediaPipe ile vücut ve el iskelet noktaları çıkarılır, eğitilmiş bir LSTM + Attention modeli ile kelime tahmini yapılır.
 
-## Proje Özeti
-
-Tek başına spor yapan bireyler genellikle profesyonel geri bildirimden yoksundur. Bu durum yanlış egzersiz formu, performans düşüşü ve sakatlanma riskini artırır.
-
-Bu proje, klasik egzersiz sınıflandırma yaklaşımlarının ötesine geçerek hareketin ne kadar doğru yapıldığını analiz eden bir form değerlendirme sistemi sunar.
+![Gerçek Zamanlı Tahmin](webcamss.png)
 
 ---
 
-## Ana Özellikler
+## Nasıl çalışır?
 
-- **Çift Görevli Mimari:** Aynı anda hem egzersiz sınıflandırması yapar hem de hareketin geometrik rekonstrüksiyonunu gerçekleştirir.
-- **Anomali Tespiti:** Yüksek yeniden oluşturma hatası (reconstruction error), form bozukluğunun bir göstergesi olarak kullanılır.
-- **Çok Modlu Veri Füzyonu:** Poz (61 nokta) ve sensör verilerini CNN tabanlı öznitelik çıkarıcılarla işleyip LSTM/GRU ağlarında birleştirir.
-- **Multi-Task Learning (MTL):** Sınıflandırma ve Autoencoder yapılarını tek bir ağda eğiterek genelleştirme yeteneğini artırır.
-- **Dinamik Kayıp Dengeleme:** Belirsizlik ağırlıklandırması (Uncertainty Weighting) ile çoklu görevler arasındaki kayıp dengesini otomatik ayarlar.
-- **Akıllı Geri Bildirim Sistemi:** İdeal hareket formu ile kullanıcı hareketi arasındaki sapmaları analiz ederek eklem bazlı düzeltme önerileri sunar.
-- **Ablasyon Çalışması Desteği:** Konfigürasyon dosyası üzerinden farklı füzyon teknikleri (Concat/Attention) ve RNN tipleri (LSTM/GRU) kolayca test edilebilir.
+```
+Webcam → MediaPipe Holistic → 170 boyutlu özellik vektörü
+       → 82 framelık kayan pencere → LSTM + Masked Attention modeli
+       → Softmax (30 sınıf) → Majority voting → Ekran overlay
+```
 
----
-
-## Veri Seti: MM-Fit
-
-Projede, spor egzersizleri için özel olarak oluşturulmuş çok cihazlı ve çok modlu MM-Fit veri seti kullanılmıştır.
-
-- İçerik: 800 dakikadan fazla sensör ve video verisi.
-- Cihazlar: Akıllı saatler (bilek), akıllı telefonlar (cep) ve kulaklıklar.
-- Egzersizler (10 Temel Hareket): Squats, Push-ups, Dumbbell Shoulder Presses, Lunges, Standing Dumbbell Rows, Sit-ups, Dumbbell Tricep Extensions, Bicep Curls, Sitting Dumbbell Lateral Raises ve Jumping Jacks.
+Her frame'de MediaPipe 11 vücut noktası (pose) + sol el + sağ el keypoint'lerini çıkarır (toplam 170 sayı). Bu vektörler 82 framelık bir pencerede birikir; her 15 frame'de bir model bu pencereyi değerlendirip tahmin üretir. Son 5 tahminden en çok tekrar eden kelime gösterilir.
 
 ---
 
-## Dosya Yapısı ve Modüller
+## Desteklenen kelimeler (30 sınıf)
 
-Proje, modülerlik ve sürdürülebilirlik prensiplerine göre yapılandırılmıştır:
+| | | | |
+|---|---|---|---|
+| ben | sen | selam | hoşçakal |
+| tamam | evet | hayır | teşekkür |
+| rica etmek | özür dilemek | var | yok |
+| iyi | kötü | nasıl | neden |
+| nerede | yardım | doktor | hasta |
+| hastane | ilaç | geçmiş olsun | atatürk |
+| ev | zaman | içmek | yemek |
+| yapmak | bakmak | | |
 
-| Dosya | Açıklama |
-| :--- | :--- |
-| `main.py` | **Ana Yönetici:** Eğitim, test ve değerlendirme pipeline'ını yönetir. |
-| `config.yaml` | **Konfigürasyon:** Hiperparametreler, model ayarları ve dosya yolları burada tanımlanır. |
-| `model.py` | **Mimari:** `MultiModalClassifier`, `PoseAutoencoder` ve `MultiTaskNetwork` sınıflarını içerir. |
-| `preprocessing.py` | **Veri İşleme:** Normalizasyon, gürültü ekleme (Noise Injection) ve Stratified Split işlemlerini yapar. |
-| `trainer.py` | **Eğitim Döngüsü:** Modellerin eğitimi, validasyonu ve Erken Durdurma (Early Stopping) mantığını içerir. |
-| `evaluater.py` | **Değerlendirme:** F1-Score, Accuracy, MSE ve MAE metriklerini hesaplar. |
-| `inference.py` | **Analiz:** Eğitilmiş modeli kullanarak hareket düzeltme raporları üretir. |
-| `plots.py` | **Görselleştirme:** Eğitim geçmişi, Confusion Matrix ve kayıp grafikleri çizer. |
-| `experiment.py` | **Loglama:** Her deney için tarih damgalı klasörler oluşturur ve sonuçları saklar. |
+---
+
+## Gereksinimler
+
+- **Python 3.11 veya üzeri**
+- **Webcam** (USB veya dahili, index 0)
+- Windows, Linux veya macOS
 
 ---
 
 ## Kurulum
 
-```bash
-pip install torch numpy pandas scikit-learn matplotlib seaborn pyyaml tqdm
+### Seçenek A — `uv` ile (önerilen)
+
+`uv` modern ve hızlı bir Python paket yöneticisidir. Hem Python sürümünü hem sanal ortamı otomatik yönetir.
+
+**1. uv kur (Windows PowerShell — yönetici olarak):**
+
+```powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+```
+
+Kurulumdan sonra terminali kapatıp yeniden aç.
+
+**2. Proje klasörüne gel:**
+
+```powershell
+cd tid_realtime
+```
+
+**3. Bağımlılıkları kur:**
+
+```powershell
+uv sync
+```
+
+Bu komut Python 3.11 ortamı oluşturur ve tüm paketleri `uv.lock` dosyasına göre tam sürümüyle yükler.
+
+---
+
+### Seçenek B — standart `pip` ile
+
+`uv` kurmak istemiyorsan:
+
+```powershell
+pip install tensorflow-cpu mediapipe==0.10.14 opencv-python numpy
 ```
 
 ---
 
-## Model Mimarisi
+## Çalıştırma
 
-Encoder-Decoder tabanlı uçtan uca eğitilebilir mimari.
+### Gerçek zamanlı tahmin (webcam)
 
-### Encoder
-
-- **Sensör ve Poz Dalları:** 1D-CNN katmanları ile uzaysal öznitelikler çıkarılır.
-- **Zamansal Modelleme:** RNN katmanları (GRU veya LSTM) ile hareketin zaman içindeki değişimi modellenir.
-- **Füzyon:** İki farklı veri dalı, dikkat mekanizması (Attention) veya birleştirme (Concat) yöntemleriyle bir araya getirilir.
-
-### Decoder
-
-- **Classifier Head:** Egzersizin sınıfını belirlemek için Fully Connected katmanlar ve Softmax kullanır.
-- **Reconstruction Head:** Sıkıştırılmış veriden orijinal poz dizisini tekrar üreterek hareket formunu öğrenir.
-
----
-
-## Multi-Task Loss
-
-Görevler arasındaki ağırlık dengesini otomatik olarak ayarlamak için belirsizlik ağırlıklı (uncertainty weighting) kayıp fonksiyonu kullanılmıştır:
-
-```
-L_total = (1 / 2σ₁²)·L_cls + (1 / 2σ₂²)·L_recon + log(σ₁σ₂)
+```powershell
+uv run python main.py
+# veya pip kullanıyorsan:
+python main.py
 ```
 
----
+Çıkmak için kamera penceresinde **`q`** tuşuna bas.
 
-## Deney Sonuçları
+### Video dosyalarıyla offline değerlendirme
 
-Proje kapsamında 6 farklı model konfigürasyonu test edilmiştir:
+`sign_samples/` klasörüne `0_ben.mp4`, `5_evet.mp4` gibi isimlendirilmiş `.mp4` videoları koy.
 
-| Konfigürasyon | Özellik | Val Acc (%) | Recon MSE |
-| :--- | :--- | :--- | :--- |
-| V0 | Regülarizasyonsuz | 90.49 | 0.2245 |
-| V1 | + Uncertainty Weighting | 90.17 | 0.2221 |
-| V2 | + Regülarizasyon (Baseline) | 88.78 | 0.2187 |
-| V2.1 | Attention Fusion | 88.85 | 0.2185 |
-| V2.2 | LSTM RNN (En iyi sınıflandırıcı) | **91.56** | 0.2009 |
-| **V2.3** | Deep Decoder (En iyi form analizci) | 89.04 | **0.1803** |
+**Yöntem 1** — Eğitim pipeline'ıyla birebir aynı değerlendirme (tüm frame → center-crop/pad → normalize → tahmin):
 
----
+```powershell
+uv run python evaluate_samples.py
+```
 
-## Final Model
+**Yöntem 2** — main.py'nin aynı videoyu işleyeceği tahmini simüle eder (kayan pencere + majority voting):
 
-Form analizi açısından en iyi performansı verdiği için **V2.3 (Deep Decoder)** seçilmiştir.
+```powershell
+uv run python evaluate_live_sim.py
+```
 
----
-
-## Proje Yapısı
+Her iki script de şu formatta çıktı verir:
 
 ```
-scripts/
- ├─ preprocessing.py
- ├─ model.py
- ├─ trainer.py
- ├─ evaluater.py
- └─ plots.py
-configs/
- └─ config.yaml
-run_pipeline.py
+Video                     Gercek               Tahmin               Guven   Sonuc
+─────────────────────────────────────────────────────────────────────────────────────
+0_ben.mp4                 0_ben                0_ben                 91.2%  ✓
+5_evet.mp4                5_evet               5_evet                87.4%  ✓
+6_hayir.mp4               6_hayir              6_hayir               78.1%  ✓
+
+Sonuc: 3/3 dogru  (100.0%)
 ```
 
 ---
 
-## Kullanım
+## Ekran overlay açıklaması
 
-### Sınıflandırma
+| Bölge | İçerik |
+|---|---|
+| Sol üst — büyük yeşil yazı | Tahmin edilen kelime |
+| Altı | Güven yüzdesi |
+| Mavi/yeşil bar | Buffer doluluk oranı (mavi = dolmakta, yeşil = hazır) |
+| Sağ üst panel | Son 5 tahmin geçmişi (en yeni üstte) |
+| Vücut üzerindeki çizgiler | MediaPipe landmark görselleştirmesi |
 
-```python
-run_pipeline(config_path='configs/config.yaml', mode='cls')
+Terminal çıktısı (yalnızca tahmin değiştiğinde):
+
+```
+[TAHMiN] 2_selam                   Guven:  87.3%  Buffer: 82/82
+[TAHMiN] 5_evet                    Guven:  91.0%  Buffer: 82/82
 ```
 
-### Multi-Task Eğitim
+---
 
-```python
-run_pipeline(config_path='configs/config.yaml', mode='mtl')
+## Proje yapısı
+
 ```
+tid_realtime/
+├── main.py                  # Webcam döngüsü ve overlay
+├── predictor.py             # Kayan pencere, model yükleme, inference thread
+├── keypoint_extractor.py    # MediaPipe holistic → 170 boyutlu vektör
+├── evaluate_samples.py      # Video dosyaları ile offline değerlendirme
+├── evaluate_live_sim.py     # main.py davranışını simüle eden değerlendirme
+├── pyproject.toml           # Bağımlılık tanımları
+├── uv.lock                  # Kilitlenmiş paket sürümleri
+├── models/
+│   ├── model_final.keras    # Eğitilmiş LSTM + Attention modeli (17 MB)
+│   └── normalization.npz    # Eğitim verisinden hesaplanan mean ve std
+└── sign_samples/            # (isteğe bağlı) Test video klipleri
+```
+
+---
+
+## Teknik detaylar
+
+| Parametre | Değer |
+|---|---|
+| Özellik vektörü | 170 boyut — pose 44 + sol el 63 + sağ el 63 |
+| Pencere boyutu | 82 frame |
+| Tahmin adımı | Her 15 frame'de bir |
+| Padding değeri | -1.0 (eksik frame için) |
+| Normalizasyon | (x − mean) / std, yalnızca gerçek frame'lerde |
+| Majority voting | Son 5 tahmin |
+| Güven eşiği | 0.50 (altındaysa "?" gösterilir) |
+| Model mimarisi | Bidirectional LSTM + Masked Attention + Dense(30, softmax) |
+| Model çıktısı | 30 sınıf softmax olasılıkları |
+| Inference | Arka plan thread'i (ana döngüyü bloklamaz) |
+
+---
+
+## Sorun giderme
+
+**`[HATA] Kamera acilamadi (index 0)`**
+Başka bir uygulama kamerayı kullanıyor olabilir. Kapat ve tekrar dene. Birden fazla kamera varsa `main.py` içinde `cv2.VideoCapture(0)` → `cv2.VideoCapture(1)` dene.
+
+**Model yükleme çok yavaş**
+TensorFlow CPU ilk yüklemede yavaştır (30–60 sn), normaldir. İlk `predict` çağrısı da ısınma için yapılır.
+
+**Tahmin hep `?` çıkıyor**
+Güven 0.50'nin altında kalıyor demektir. Yeterli aydınlatma olduğundan ve kameraya dik baktığından emin ol. Buffer barının yeşile dönmesini bekle.
+
+**`mediapipe` veya `tensorflow` import hatası**
+`uv sync` veya `pip install` adımını atlamış olabilirsin. Kurulumu tekrar çalıştır.
+
+---
+
+## Veri ve eğitim notebookları
+
+Eğitim verisi, veri çıkarım scriptleri ve Jupyter notebookları Google Drive'da:
+
+[Google Drive — TID Proje Dosyaları](https://drive.google.com/drive/folders/1CWbJuS-4jW6sbJxt4ujwVbuEXoXlzzXo?usp=sharing)
+
+---
+
+## Lisans
+
+[MIT](LICENSE)
